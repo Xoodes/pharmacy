@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mekonen Pharmacy · Staff</title>
+<meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef4f1;--surface:#fff;--ink:#12261f;--mute:#5d7068;--line:#d5e1db;--brand:#0f6b4f;--brand-ink:#fff;--ok:#0f6b4f;--okbg:#d9efe5;--low:#8a5a00;--lowbg:#fbeac2;--bad:#a42a2a;--badbg:#f8dcdc;--rx:#3b4a9e;--rxbg:#e2e6fa;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1815;--surface:#16241f;--ink:#e6f1ec;--mute:#93a89f;--line:#26382f;--brand:#46c496;--brand-ink:#08221a;--ok:#6fdcb0;--okbg:#17372b;--low:#f0c15c;--lowbg:#3a2f12;--bad:#f08a8a;--badbg:#3d1c1c;--rx:#a9b4ff;--rxbg:#242a52;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1815;--surface:#16241f;--ink:#e6f1ec;--mute:#93a89f;--line:#26382f;--brand:#46c496;--brand-ink:#08221a;--ok:#6fdcb0;--okbg:#17372b;--low:#f0c15c;--lowbg:#3a2f12;--bad:#f08a8a;--badbg:#3d1c1c;--rx:#a9b4ff;--rxbg:#242a52;color-scheme:dark}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 15px/1.5 Figtree,system-ui,sans-serif}
+h1,h2,.brand,.num{font-family:"Bricolage Grotesque",Figtree,system-ui,sans-serif}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0;flex-wrap:wrap}
+.brand{font-weight:800;font-size:24px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.brand i{width:30px;height:30px;border-radius:9px;background:var(--brand);display:grid;place-items:center}
+.brand i:after{content:"";width:12px;height:12px;background:linear-gradient(var(--brand-ink),var(--brand-ink)) center/100% 4px no-repeat,linear-gradient(var(--brand-ink),var(--brand-ink)) center/4px 100% no-repeat}
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;padding:7px 16px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--mute);transition:background .2s,color .2s}
+.seg button[aria-pressed=true]{background:var(--brand);color:var(--brand-ink)}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.05;letter-spacing:-.03em;margin:18px 0 6px;font-weight:800}
+.sub{color:var(--mute);margin:0 0 22px;max-width:60ch}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--line);border-radius:16px;margin-bottom:20px;overflow:hidden}
+.stat{padding:16px 18px;border-right:1px solid var(--line)}.stat:last-child{border:0}
+.stat .num{font-size:30px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.stat span{color:var(--mute);font-size:13px}
+.stat.warn .num{color:var(--low)}.stat.bad .num{color:var(--bad)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bar input,.bar select{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-height:42px}
+.bar input[type=search]{flex:1 1 220px}
+.btn{background:var(--brand);color:var(--brand-ink);border:0;border-radius:12px;padding:10px 18px;font-weight:600;cursor:pointer;min-height:42px;transition:transform .1s,opacity .2s}
+.btn:active{transform:scale(.97)}.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--badbg);color:var(--bad)}
+.tablebox{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th{text-align:left;font-weight:600;color:var(--mute);font-size:13px;padding:12px 16px;border-bottom:1px solid var(--line)}
+td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border:0}tbody tr{transition:background .15s}tbody tr:hover{background:var(--bg)}
+td small{display:block;color:var(--mute)}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.ok{background:var(--okbg);color:var(--ok)}.low{background:var(--lowbg);color:var(--low)}.bad{background:var(--badbg);color:var(--bad)}.rx{background:var(--rxbg);color:var(--rx)}
+.qty{display:inline-flex;align-items:center;gap:8px}
+.qty button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700}
+.qty button:hover{border-color:var(--brand)}
+.qty b{min-width:34px;text-align:center;font-family:"Bricolage Grotesque",sans-serif;font-size:17px}
+.lnk{background:none;border:0;color:var(--brand);cursor:pointer;font-weight:600;padding:4px 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s,transform .2s}
+.item:hover{border-color:var(--brand);transform:translateY(-2px)}
+.item h2{margin:0;font-size:19px;letter-spacing:-.01em}
+.item .meta{color:var(--mute);font-size:14px}
+.item .foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:8px}
+.price{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:20px}
+.empty{padding:40px 20px;text-align:center;color:var(--mute)}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--ink);padding:0;width:min(520px,calc(100% - 24px))}
+dialog::backdrop{background:rgba(8,20,16,.5)}
+form{padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+form h2{grid-column:1/-1;margin:0 0 4px;font-size:22px}
+label{display:grid;gap:4px;font-weight:600;font-size:13px;color:var(--mute)}
+label.full{grid-column:1/-1}
+label input,label select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-weight:400;color:var(--ink)}
+label.chk{display:flex;align-items:center;gap:8px;color:var(--ink)}
+.acts{grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+.login{max-width:380px;grid-template-columns:1fr;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.msg{color:var(--bad);font-size:14px;min-height:20px}
+.where{display:flex;flex-wrap:wrap;gap:4px 18px;margin:-12px 0 20px;color:var(--mute)}
+.where a{color:var(--brand);font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;font-weight:600}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:640px){.stats{grid-template-columns:1fr 1fr}.stat:nth-child(2){border-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}form{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand"><i></i><span id="bn"></span></div>
+  <button class="btn ghost" id="out" hidden>Sign out</button>
+</header>
+<main id="app"></main>
+</div>
+<dialog id="dlg"><form id="f" method="dialog"></form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB="https://kscnfjumpwtnuvvosqfe.supabase.co";
+const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzY25manVtcHd0bnV2dm9zcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxMjAyNTYsImV4cCI6MjEwODY5NjI1Nn0.j50ox8QAqz4OB1Lm9YNQaqZK_AY3Hw2T9tDAGrEKCvw";
+/* Edit these details anytime. Leave phone or hours empty ("") to hide them. */
+const PHARMACY={name:"Mekonen Pharmacy",area:"Bole Rwanda, Addis Ababa",phone:"",hours:""};
+const MODE="staff";
+const SKEY="shelf-session-v1", day=86400000, now=Date.now();
+const iso=n=>new Date(now+n*day).toISOString().slice(0,10);
+const SEED=[
+["Paracetamol","Acetaminophen","Pain & fever","500 mg","Tablet",240,60,0.35,iso(420),0,"A1"],
+["Amoxicillin","Amoxicillin","Antibiotics","500 mg","Capsule",18,40,1.8,iso(210),1,"B2"],
+["Ibuprofen","Ibuprofen","Pain & fever","400 mg","Tablet",120,50,0.6,iso(60),0,"A2"],
+["Metformin","Metformin HCl","Diabetes","850 mg","Tablet",90,45,0.9,iso(300),1,"C1"],
+["Salbutamol Inhaler","Salbutamol","Respiratory","100 mcg","Inhaler",6,10,14,iso(380),1,"D3"],
+["ORS Sachets","Oral rehydration salts","Rehydration","20.5 g","Sachet",75,30,0.7,iso(500),0,"A4"],
+["Cetirizine","Cetirizine HCl","Allergy","10 mg","Tablet",0,30,0.5,iso(260),0,"A3"],
+["Omeprazole","Omeprazole","Digestive","20 mg","Capsule",64,30,1.1,iso(25),0,"B1"],
+["Amlodipine","Amlodipine besylate","Heart & BP","5 mg","Tablet",110,40,0.8,iso(330),1,"C3"],
+["Vitamin C","Ascorbic acid","Vitamins","1000 mg","Effervescent",55,25,1.5,iso(450),0,"E1"],
+["Insulin Glargine","Insulin glargine","Diabetes","100 IU/ml","Pen",8,10,38,iso(95),1,"F1"],
+["Antiseptic Solution","Povidone-iodine","First aid","10%","Bottle",22,10,4.5,iso(300),0,"E4"]
+].map(r=>({name:r[0],generic:r[1],category:r[2],strength:r[3],form:r[4],qty:r[5],reorder:r[6],price:r[7],expiry:r[8],rx:!!r[9],shelf:r[10]}));
+
+let session=null;try{session=JSON.parse(localStorage.getItem(SKEY))}catch(e){}
+function saveSess(s){session=s;try{s?localStorage.setItem(SKEY,JSON.stringify(s)):localStorage.removeItem(SKEY)}catch(e){}}
+async function tokenCall(grant,body){
+ const r=await fetch(SB+"/auth/v1/token?grant_type="+grant,{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(d.error_description||d.msg||"Sign in failed");
+ return {access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+d.expires_in,email:(d.user&&d.user.email)||(session&&session.email)||""}}
+const login=async(email,password)=>saveSess(await tokenCall("password",{email,password}));
+async function api(path,o={}){
+ let token=KEY;
+ if(o.auth!==false&&session){
+  if(session.expires_at-Date.now()/1000<60){try{saveSess(await tokenCall("refresh_token",{refresh_token:session.refresh_token}))}catch(e){saveSess(null);const x=new Error("Session ended. Please sign in again.");x.status=401;throw x}}
+  token=session.access_token}
+ const h={apikey:KEY,Authorization:"Bearer "+token,"Content-Type":"application/json"};if(o.prefer)h.Prefer=o.prefer;
+ const r=await fetch(SB+path,{method:o.method||"GET",headers:h,body:o.body?JSON.stringify(o.body):undefined});
+ if(!r.ok){let m="Request failed ("+r.status+")";try{m=(await r.json()).message||m}catch(e){}const x=new Error(m);x.status=r.status;throw x}
+ return r.status===204?null:r.json()}
+
+const $=s=>document.querySelector(s);
+$("#bn").textContent=PHARMACY.name+(MODE==="staff"?" · Staff":"");
+document.title=PHARMACY.name+(MODE==="staff"?" · Staff":" · Medicine catalogue");
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money=n=>"Br "+Number(n).toFixed(2);
+const daysLeft=d=>Math.round((new Date(d)-now)/day);
+function status(i){const d=daysLeft(i.expiry);
+ if(d<0)return{k:"bad",t:"Expired"};
+ if(i.qty===0)return{k:"bad",t:"Out of stock"};
+ if(i.qty<=i.reorder)return{k:"low",t:"Reorder"};
+ if(d<=90)return{k:"low",t:"Expires in "+d+"d"};
+ return{k:"ok",t:"In stock"}}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2200)}
+
+let items=[],err=null,lerr="",view=MODE==="staff"?"staff":"cat",q="",cat="All";
+$("#out").onclick=()=>{saveSess(null);items=[];lerr="";render();toast("Signed out")};
+
+async function refresh(){
+ items=[];err=null;
+ if(view==="staff"&&!session)return render();
+ $("#app").innerHTML='<div class="empty">Loading…</div>';
+ try{items=view==="cat"?await api("/rest/v1/catalogue?select=*&order=name",{auth:false}):await api("/rest/v1/items?select=*&order=name")}
+ catch(e){if(e.status===401){saveSess(null);lerr=e.message}else err=e.message}
+ render()}
+
+function filtered(list){const s=q.toLowerCase();
+ return list.filter(i=>(cat==="All"||i.category===cat)&&(!s||[i.name,i.generic,i.category].some(x=>String(x||"").toLowerCase().includes(s))))}
+function bar(extra){const cats=["All",...new Set(items.map(i=>i.category).filter(Boolean))].sort((a,b)=>a==="All"?-1:b==="All"?1:a.localeCompare(b));
+ return `<div class="bar"><input type="search" id="q" placeholder="Search by name or generic" value="${esc(q)}" aria-label="Search">
+ <select id="cat" aria-label="Category">${cats.map(c=>`<option ${c===cat?"selected":""}>${esc(c)}</option>`).join("")}</select>${extra||""}</div>`}
+function bindBar(){const qi=$("#q");qi.oninput=()=>{q=qi.value;const p=qi.selectionStart;render();const n=$("#q");n.focus();n.setSelectionRange(p,p)};$("#cat").onchange=e=>{cat=e.target.value;render()}}
+
+function render(){
+ $("#out").hidden=MODE!=="staff"||!session;
+ if(view==="staff"&&!session)return renderLogin();
+ if(err)return $("#app").innerHTML=`<div class="empty"><b>Couldn’t load the data.</b><br>${esc(err)}<br><br><button class="btn" id="retry">Try again</button></div>`,$("#retry").onclick=refresh;
+ view==="cat"?renderCat():renderStaff()}
+
+function renderLogin(){
+ $("#app").innerHTML=`<h1>Staff sign in</h1><p class="sub">This page is for pharmacy staff only.</p>
+ <form class="login" id="lf"><label>Email<input name="email" type="email" required autocomplete="username"></label>
+ <label>Password<input name="pw" type="password" required autocomplete="current-password"></label>
+ <div class="msg" role="alert">${esc(lerr)}</div><button class="btn">Sign in</button></form>`;
+ $("#lf").onsubmit=async e=>{e.preventDefault();const d=new FormData(e.target);
+  try{await login(d.get("email"),d.get("pw"));lerr="";await refresh()}catch(x){lerr=x.message;renderLogin()}}}
+
+function renderStaff(){
+ if(!items.length){
+  $("#app").innerHTML=`<h1>Stock room</h1><div class="empty"><b>Your stock list is empty.</b><br>Add products one by one, or start with sample medicines you can edit or delete.<br><br><button class="btn" id="seed">Load 12 sample medicines</button> <button class="btn ghost" id="add">Add first product</button></div>`;
+  $("#add").onclick=()=>edit();
+  $("#seed").onclick=async()=>{try{items=await api("/rest/v1/items",{method:"POST",body:SEED,prefer:"return=representation"});render();toast("Sample medicines added")}catch(x){toast(x.message)}};
+  return}
+ const low=items.filter(i=>i.qty<=i.reorder&&daysLeft(i.expiry)>=0).length;
+ const exp=items.filter(i=>daysLeft(i.expiry)<=90).length;
+ const val=items.reduce((a,i)=>a+i.qty*i.price,0);
+ const rows=filtered(items).sort((a,b)=>a.name.localeCompare(b.name));
+ $("#app").innerHTML=`<h1>Stock room</h1><p class="sub">Changes save to the shared database right away and show in the customer catalogue.</p>
+ <div class="stats"><div class="stat"><div class="num">${items.length}</div><span>Products</span></div>
+ <div class="stat ${low?"warn":""}"><div class="num">${low}</div><span>Need reordering</span></div>
+ <div class="stat ${exp?"bad":""}"><div class="num">${exp}</div><span>Expired or expiring in 90 days</span></div>
+ <div class="stat"><div class="num">${Math.round(val).toLocaleString()}</div><span>Stock value (Br)</span></div></div>
+ ${bar(`<button class="btn ghost" id="csv">Export CSV</button><button class="btn" id="add">Add product</button>`)}
+ <div class="tablebox"><table><thead><tr><th>Product</th><th>Shelf</th><th>Quantity</th><th>Price</th><th>Expiry</th><th>Status</th><th></th></tr></thead><tbody>
+ ${rows.map(i=>{const s=status(i);return `<tr><td><b>${esc(i.name)}</b> ${i.rx?'<span class="pill rx">Rx</span>':""}<small>${esc(i.strength)} · ${esc(i.form)} · ${esc(i.generic)}</small></td>
+ <td>${esc(i.shelf)}</td>
+ <td><span class="qty"><button data-d="-1" data-id="${i.id}" aria-label="Remove one ${esc(i.name)}">−</button><b>${i.qty}</b><button data-d="1" data-id="${i.id}" aria-label="Add one ${esc(i.name)}">+</button></span><small>Reorder at ${i.reorder}</small></td>
+ <td>${money(i.price)}</td><td>${esc(i.expiry)}</td><td><span class="pill ${s.k}">${s.t}</span></td>
+ <td><button class="lnk" data-edit="${i.id}">Edit</button></td></tr>`}).join("")}
+ </tbody></table>${rows.length?"":'<div class="empty">No products match. Clear the search or add a product.</div>'}</div>`;
+ bindBar();
+ $("#add").onclick=()=>edit();$("#csv").onclick=exportCSV;
+ document.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{
+  const i=items.find(x=>x.id===b.dataset.id),old=i.qty,n=Math.max(0,old+ +b.dataset.d);if(n===old)return;
+  i.qty=n;render();
+  try{await api(`/rest/v1/items?id=eq.${i.id}`,{method:"PATCH",body:{qty:n,updated_at:new Date().toISOString()}})}
+  catch(x){i.qty=old;render();toast(x.status===401?"Please sign in again":"Couldn’t save: "+x.message);if(x.status===401)refresh()}});
+ document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>edit(b.dataset.edit))}
+
+function renderCat(){
+ const list=filtered(items).sort((a,b)=>a.name.localeCompare(b.name));
+ $("#app").innerHTML=`<h1>What’s on our shelves</h1><p class="sub">Check if a medicine is available before you visit. Items marked Rx need a valid prescription at the counter.</p>
+ ${bar()}<div class="grid">${list.map(i=>{const a=i.availability,out=a==="out",lw=a==="limited";
+ return `<article class="item"><div><h2>${esc(i.name)}</h2><div class="meta">${esc(i.generic)}</div></div>
+ <div class="meta">${esc(i.strength)} · ${esc(i.form)} · ${esc(i.category)}</div>
+ <div class="foot"><span class="price">${money(i.price)}</span><span>${i.rx?'<span class="pill rx">Prescription needed</span> ':""}<span class="pill ${out?"bad":lw?"low":"ok"}">${out?"Out of stock":lw?"Limited":"Available"}</span></span></div></article>`}).join("")}</div>
+ ${list.length?"":'<div class="empty">Nothing to show. Try another search or category.</div>'}`;
+ bindBar()}
+
+function edit(id){const i=id?items.find(x=>x.id===id):{name:"",generic:"",category:"",strength:"",form:"Tablet",qty:0,reorder:20,price:0,expiry:iso(365),rx:false,shelf:""};
+ const f=$("#f");
+ const inp=(k,l,t="text",full)=>`<label class="${full?"full":""}">${l}<input name="${k}" type="${t}" value="${esc(i[k])}" ${t==="number"?'min="0" step="any"':""} required></label>`;
+ f.innerHTML=`<h2>${id?"Edit product":"Add product"}</h2>${inp("name","Brand name","text",1)}${inp("generic","Generic name")}${inp("category","Category")}${inp("strength","Strength")}${inp("form","Form")}${inp("qty","Quantity","number")}${inp("reorder","Reorder at","number")}${inp("price","Price (Br)","number")}${inp("expiry","Expiry date","date")}${inp("shelf","Shelf")}
+ <label class="chk full"><input type="checkbox" name="rx" ${i.rx?"checked":""}> Prescription required</label>
+ <div class="acts">${id?'<button type="button" class="btn danger" id="del">Delete</button>':""}<button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="sv">Save product</button></div>`;
+ $("#dlg").showModal();
+ $("#cx").onclick=()=>$("#dlg").close();
+ if(id)$("#del").onclick=async()=>{if(!confirm("Delete "+i.name+"?"))return;try{await api(`/rest/v1/items?id=eq.${id}`,{method:"DELETE"});items=items.filter(x=>x.id!==id);$("#dlg").close();render();toast("Product deleted")}catch(x){toast(x.message)}};
+ f.onsubmit=async e=>{e.preventDefault();const d=new FormData(f),o={};
+  ["name","generic","category","strength","form","shelf","expiry"].forEach(k=>o[k]=String(d.get(k)).trim());
+  ["qty","reorder","price"].forEach(k=>o[k]=+d.get(k));o.rx=d.has("rx");o.updated_at=new Date().toISOString();
+  const sv=$("#sv");sv.disabled=true;sv.textContent="Saving…";
+  try{
+   if(id){const r=await api(`/rest/v1/items?id=eq.${id}`,{method:"PATCH",body:o,prefer:"return=representation"});items[items.findIndex(x=>x.id===id)]=r[0]}
+   else{const r=await api("/rest/v1/items",{method:"POST",body:o,prefer:"return=representation"});items.push(r[0])}
+   $("#dlg").close();render();toast(id?"Changes saved":"Product added")
+  }catch(x){sv.disabled=false;sv.textContent="Save product";toast("Couldn’t save: "+x.message)}}}
+
+function exportCSV(){const h=["name","generic","category","strength","form","qty","reorder","price","expiry","rx","shelf"];
+ const c=[h.join(",")].concat(items.map(i=>h.map(k=>'"'+String(i[k]).replace(/"/g,'""')+'"').join(",")));
+ const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(c.join("\n"));a.download="inventory.csv";a.click()}
+refresh();
+</script>
+</body>
+</html>
