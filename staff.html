@@ -72,6 +72,12 @@ label.chk{display:flex;align-items:center;gap:8px;color:var(--ink)}
 .msg{color:var(--bad);font-size:14px;min-height:20px}
 .where{display:flex;flex-wrap:wrap;gap:4px 18px;margin:-12px 0 20px;color:var(--mute)}
 .where a{color:var(--brand);font-weight:600}
+.tabs{margin:4px 0 14px;width:max-content;max-width:100%;overflow-x:auto}
+.alert{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;background:var(--lowbg);color:var(--low);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-weight:600}
+.alert.bad{background:var(--badbg);color:var(--bad)}.alert .lnk{color:inherit;text-decoration:underline;padding:0}
+.sec{font-size:22px;letter-spacing:-.01em;margin:30px 0 12px}
+.ord{width:84px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+@media print{header,.tabs,.bar,.alert,.toast{display:none!important}body{background:#fff;color:#000}.tablebox{border:0;overflow:visible}}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;font-weight:600}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 @media (max-width:640px){.stats{grid-template-columns:1fr 1fr}.stat:nth-child(2){border-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}form{grid-template-columns:1fr}}
@@ -144,7 +150,7 @@ function status(i){const d=daysLeft(i.expiry);
  return{k:"ok",t:"In stock"}}
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2200)}
 
-let items=[],err=null,lerr="",view=MODE==="staff"?"staff":"cat",q="",cat="All";
+let items=[],err=null,lerr="",view=MODE==="staff"?"staff":"cat",q="",cat="All",tab="stock",hist=[],logErr=null,plan={};
 $("#out").onclick=()=>{saveSess(null);items=[];lerr="";render();toast("Signed out")};
 
 async function refresh(){
@@ -177,6 +183,11 @@ function renderLogin(){
   try{await login(d.get("email"),d.get("pw"));lerr="";await refresh()}catch(x){lerr=x.message;renderLogin()}}}
 
 function renderStaff(){
+ if(!items.length)return renderStock();
+ const n=lowItems().length;document.title=(n?"("+n+") ":"")+PHARMACY.name+" · Staff";
+ tab==="reorder"?renderReorder():tab==="history"?renderHistory():renderStock()}
+
+function renderStock(){
  if(!items.length){
   $("#app").innerHTML=`<h1>Stock room</h1><div class="empty"><b>Your stock list is empty.</b><br>Add products one by one, or start with sample medicines you can edit or delete.<br><br><button class="btn" id="seed">Load 12 sample medicines</button> <button class="btn ghost" id="add">Add first product</button></div>`;
   $("#add").onclick=()=>edit();
@@ -186,7 +197,7 @@ function renderStaff(){
  const exp=items.filter(i=>daysLeft(i.expiry)<=90).length;
  const val=items.reduce((a,i)=>a+i.qty*i.price,0);
  const rows=filtered(items).sort((a,b)=>a.name.localeCompare(b.name));
- $("#app").innerHTML=`<h1>Stock room</h1><p class="sub">Changes save to the shared database right away and show in the customer catalogue.</p>
+ $("#app").innerHTML=`${tabs()}${alertBar()}<h1>Stock room</h1><p class="sub">Changes save to the shared database right away and show in the customer catalogue.</p>
  <div class="stats"><div class="stat"><div class="num">${items.length}</div><span>Products</span></div>
  <div class="stat ${low?"warn":""}"><div class="num">${low}</div><span>Need reordering</span></div>
  <div class="stat ${exp?"bad":""}"><div class="num">${exp}</div><span>Expired or expiring in 90 days</span></div>
@@ -199,7 +210,7 @@ function renderStaff(){
  <td>${money(i.price)}</td><td>${esc(i.expiry)}</td><td><span class="pill ${s.k}">${s.t}</span></td>
  <td><button class="lnk" data-edit="${i.id}">Edit</button></td></tr>`}).join("")}
  </tbody></table>${rows.length?"":'<div class="empty">No products match. Clear the search or add a product.</div>'}</div>`;
- bindBar();
+ bindBar();bindTabs();
  $("#add").onclick=()=>edit();$("#csv").onclick=exportCSV;
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{
   const i=items.find(x=>x.id===b.dataset.id),old=i.qty,n=Math.max(0,old+ +b.dataset.d);if(n===old)return;
@@ -207,6 +218,68 @@ function renderStaff(){
   try{await api(`/rest/v1/items?id=eq.${i.id}`,{method:"PATCH",body:{qty:n,updated_at:new Date().toISOString()}})}
   catch(x){i.qty=old;render();toast(x.status===401?"Please sign in again":"Couldn’t save: "+x.message);if(x.status===401)refresh()}});
  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>edit(b.dataset.edit))}
+
+/* ---------- Alerts, reorder list and history ---------- */
+function lowItems(){return items.filter(i=>i.qty<=i.reorder&&daysLeft(i.expiry)>=0).sort((a,b)=>(a.qty/(a.reorder||1))-(b.qty/(b.reorder||1))||a.name.localeCompare(b.name))}
+function expItems(){return items.filter(i=>daysLeft(i.expiry)<=90).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry))}
+function tabs(){const n=lowItems().length;
+ return `<div class="seg tabs" role="group" aria-label="Sections">${[["stock","Stock"],["reorder","Reorder list"+(n?" ("+n+")":"")],["history","History"]].map(([k,l])=>`<button data-tab="${k}" aria-pressed="${tab===k}">${l}</button>`).join("")}</div>`}
+function bindTabs(){document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>goTab(b.dataset.tab));document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goTab(b.dataset.go))}
+async function goTab(t){tab=t;q="";cat="All";t==="history"?await loadLog():render()}
+function alertBar(){const l=lowItems().length,e=expItems().length;if(!l&&!e)return"";
+ const parts=[];if(l)parts.push(l+(l===1?" medicine needs":" medicines need")+" reordering");if(e)parts.push(e+(e===1?" is":" are")+" expired or expiring soon");
+ const worst=items.some(i=>daysLeft(i.expiry)<0||i.qty===0);
+ return `<div class="alert ${worst?"bad":""}" role="status"><span>${parts.join(" and ")}.</span><button class="lnk" data-go="reorder">Open reorder list</button></div>`}
+
+function renderReorder(){
+ const low=lowItems(),ex=expItems();
+ low.forEach(i=>{if(!plan[i.id])plan[i.id]={on:true,n:Math.max(i.reorder*2-i.qty,1)}});
+ $("#app").innerHTML=`${tabs()}<h1>Reorder list</h1><p class="sub">Medicines at or below their reorder level, most urgent first. Suggested amounts bring each one back to twice its reorder level. Change an amount or untick an item, then send the list to your supplier.</p>
+ ${low.length?`<div class="bar"><button class="btn" id="cp">Copy as text</button><button class="btn ghost" id="wa">Share on WhatsApp</button><button class="btn ghost" id="pr">Print</button><button class="btn ghost" id="rc">Download CSV</button></div>
+ <div class="tablebox"><table><thead><tr><th>Order</th><th>Product</th><th>In stock</th><th>Reorder level</th><th>Amount to order</th><th>Status</th></tr></thead><tbody>
+ ${low.map(i=>{const p=plan[i.id],st=status(i);return `<tr><td><input type="checkbox" data-on="${i.id}" ${p.on?"checked":""} aria-label="Include ${esc(i.name)}"></td><td><b>${esc(i.name)}</b><small>${esc(i.strength)} · ${esc(i.form)}</small></td><td>${i.qty}</td><td>${i.reorder}</td><td><input class="ord" type="number" min="1" data-n="${i.id}" value="${p.n}" aria-label="Amount to order for ${esc(i.name)}"></td><td><span class="pill ${st.k}">${st.t}</span></td></tr>`}).join("")}
+ </tbody></table></div>`:'<div class="empty"><b>Nothing to reorder.</b><br>Every medicine is above its reorder level.</div>'}
+ ${ex.length?`<h2 class="sec">Expired or expiring within 90 days</h2><div class="tablebox"><table><thead><tr><th>Product</th><th>In stock</th><th>Expiry</th><th>Status</th></tr></thead><tbody>${ex.map(i=>{const d=daysLeft(i.expiry);return `<tr><td><b>${esc(i.name)}</b><small>${esc(i.strength)} · ${esc(i.form)}</small></td><td>${i.qty}</td><td>${esc(i.expiry)}</td><td><span class="pill ${d<0?"bad":"low"}">${d<0?"Expired "+(-d)+"d ago":"In "+d+" days"}</span></td></tr>`}).join("")}</tbody></table></div>`:""}`;
+ bindTabs();
+ document.querySelectorAll("[data-on]").forEach(b=>b.onchange=()=>{plan[b.dataset.on].on=b.checked});
+ document.querySelectorAll("[data-n]").forEach(b=>b.onchange=()=>{plan[b.dataset.n].n=Math.max(1,parseInt(b.value)||1);b.value=plan[b.dataset.n].n});
+ if(!low.length)return;
+ const chosen=()=>low.filter(i=>plan[i.id]&&plan[i.id].on);
+ $("#cp").onclick=async()=>{if(!chosen().length)return toast("Tick at least one item");const t=orderText(chosen());
+  try{await navigator.clipboard.writeText(t);toast("List copied")}catch(e){window.prompt("Copy this list:",t)}};
+ $("#wa").onclick=()=>{if(!chosen().length)return toast("Tick at least one item");window.open("https://wa.me/?text="+encodeURIComponent(orderText(chosen())),"_blank")};
+ $("#pr").onclick=()=>window.print();
+ $("#rc").onclick=()=>{if(!chosen().length)return toast("Tick at least one item");
+  const rows=[["product","strength","form","in stock","amount to order"]].concat(chosen().map(i=>[i.name,i.strength,i.form,i.qty,plan[i.id].n]));
+  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\n"));a.download="reorder-list.csv";a.click()}}
+function orderText(rows){const d=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+ return PHARMACY.name+" - order list, "+d+"\n\n"+rows.map((i,k)=>`${k+1}. ${i.name} ${i.strength} (${i.form}) - ${plan[i.id].n}`).join("\n")+"\n\nThank you."}
+
+async function loadLog(){
+ $("#app").innerHTML=tabs()+'<div class="empty">Loading history…</div>';bindTabs();logErr=null;
+ try{hist=await api("/rest/v1/stock_log?select=*&order=changed_at.desc&limit=200")}
+ catch(e){if(e.status===401){saveSess(null);lerr=e.message;return render()}logErr=(e.status===404||/stock_log/.test(e.message))?"setup":e.message}
+ render()}
+const when=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+function what(h){
+ if(h.action==="added")return "Added with "+h.new_qty+" in stock";
+ if(h.action==="deleted")return "Deleted (had "+h.old_qty+" in stock)";
+ let o="";
+ if(h.old_qty!==h.new_qty){const d=h.new_qty-h.old_qty;o+=`<span class="pill ${d>0?"ok":"low"}">${d>0?"+":"-"}${Math.abs(d)}</span> ${h.old_qty} to ${h.new_qty}. `}
+ return o+esc(h.details||"")}
+function renderHistory(){
+ let body;
+ if(logErr==="setup")body='<div class="empty"><b>History isn’t set up yet.</b><br>Run the history script in Supabase once (the steps are in the guide), then reload this page.</div>';
+ else if(logErr)body=`<div class="empty"><b>Couldn’t load history.</b><br>${esc(logErr)}</div>`;
+ else{const s=q.toLowerCase();const rows=hist.filter(h=>!s||[h.item_name,h.changed_by,h.details].some(x=>String(x||"").toLowerCase().includes(s)));
+  body=`<div class="bar"><input type="search" id="q" placeholder="Search by medicine or person" value="${esc(q)}" aria-label="Search history"><button class="btn ghost" id="rl">Refresh</button></div>
+  <div class="tablebox"><table><thead><tr><th>When</th><th>Who</th><th>Medicine</th><th>What changed</th></tr></thead><tbody>
+  ${rows.map(h=>`<tr><td>${when(h.changed_at)}</td><td>${esc(h.changed_by)}</td><td><b>${esc(h.item_name)}</b></td><td>${what(h)}</td></tr>`).join("")}</tbody></table>${rows.length?"":'<div class="empty">No changes recorded yet.</div>'}</div>
+  <p class="sub" style="margin-top:12px">Showing the latest 200 changes.</p>`}
+ $("#app").innerHTML=`${tabs()}<h1>History</h1><p class="sub">Every stock change, who made it and when. The database records it automatically, so it can’t be skipped or edited from this page.</p>${body}`;
+ bindTabs();
+ const qi=$("#q");if(qi)qi.oninput=()=>{q=qi.value;const p=qi.selectionStart;renderHistory();const n=$("#q");n.focus();n.setSelectionRange(p,p)};
+ const rl=$("#rl");if(rl)rl.onclick=loadLog}
 
 function renderCat(){
  const list=filtered(items).sort((a,b)=>a.name.localeCompare(b.name));
