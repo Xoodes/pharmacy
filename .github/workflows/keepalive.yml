@@ -1,0 +1,12 @@
+name: Keep database awake
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS "https://kscnfjumpwtnuvvosqfe.supabase.co/rest/v1/catalogue?select=id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzY25manVtcHd0bnV2dm9zcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxMjAyNTYsImV4cCI6MjEwODY5NjI1Nn0.j50ox8QAqz4OB1Lm9YNQaqZK_AY3Hw2T9tDAGrEKCvw"
