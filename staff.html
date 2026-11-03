@@ -85,6 +85,8 @@ label.chk{display:flex;align-items:center;gap:8px;color:var(--ink)}
 .sec{font-size:22px;letter-spacing:-.01em;margin:30px 0 12px}
 .ord{width:84px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 @media print{header,.tabs,.bar,.alert,.toast{display:none!important}body{background:#fff;color:#000}.tablebox{border:0;overflow:visible}}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
+[hidden]{display:none!important}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;font-weight:600}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 @media (max-width:640px){.stats{grid-template-columns:1fr 1fr}.stat:nth-child(2){border-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}form{grid-template-columns:1fr}}
@@ -95,7 +97,8 @@ label.chk{display:flex;align-items:center;gap:8px;color:var(--ink)}
 <div class="wrap">
 <header>
   <div class="brand"><i></i><span id="bn"></span></div>
-  <button class="btn ghost" id="out" hidden>Sign out</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn ghost" id="mgr" href="manager.html" hidden>Manager view</a>
+  <button class="btn ghost" id="out" hidden>Sign out</button></div>
 </header>
 <main id="app"></main>
 </div>
@@ -160,11 +163,14 @@ function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clea
 let items=[],err=null,lerr="",view=MODE==="staff"?"staff":"cat",q="",cat="All",tab="stock",hist=[],logErr=null,plan={};
 $("#out").onclick=()=>{saveSess(null);items=[];lerr="";render();toast("Signed out")};
 
+let me=null;
+function uid(){try{const p=session.access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");return JSON.parse(atob(p)).sub}catch(e){return""}}
+async function loadMe(){try{const r=await api(`/rest/v1/profiles?select=role,active&user_id=eq.${uid()}`);return r[0]||{role:"none",active:false}}catch(e){if(e.status===404)return{role:"staff",active:true,legacy:true};throw e}}
 async function refresh(){
  items=[];err=null;
  if(view==="staff"&&!session)return render();
  $("#app").innerHTML='<div class="empty">Loading…</div>';
- try{items=view==="cat"?await api("/rest/v1/catalogue?select=*&order=name",{auth:false}):await api("/rest/v1/items?select=*&order=name")}
+ try{if(view==="cat")items=await api("/rest/v1/catalogue?select=*&order=name",{auth:false});else{me=await loadMe();items=me.active?await api("/rest/v1/items?select=*&order=name"):[]}}
  catch(e){if(e.status===401){saveSess(null);lerr=e.message}else err=e.message}
  render()}
 
@@ -178,6 +184,8 @@ function bindBar(){const qi=$("#q");qi.oninput=()=>{q=qi.value;const p=qi.select
 function render(){
  $("#out").hidden=MODE!=="staff"||!session;
  if(view==="staff"&&!session)return renderLogin();
+ $("#mgr").hidden=!(me&&me.role==="manager"&&me.active);
+ if(view==="staff"&&me&&!me.active)return $("#app").innerHTML=`<h1>Access switched off</h1><div class="empty">Your account is signed in, but the manager has switched your access off.<br>Ask the manager to turn it back on, then reload this page.</div>`;
  if(err)return $("#app").innerHTML=`<div class="empty"><b>Couldn’t load the data.</b><br>${esc(err)}<br><br><button class="btn" id="retry">Try again</button></div>`,$("#retry").onclick=refresh;
  view==="cat"?renderCat():renderStaff()}
 
@@ -303,10 +311,10 @@ function edit(id){const i=id?items.find(x=>x.id===id):{name:"",generic:"",catego
  const inp=(k,l,t="text",full)=>`<label class="${full?"full":""}">${l}<input name="${k}" type="${t}" value="${esc(i[k])}" ${t==="number"?'min="0" step="any"':""} required></label>`;
  f.innerHTML=`<h2>${id?"Edit product":"Add product"}</h2>${inp("name","Brand name","text",1)}${inp("generic","Generic name")}${inp("category","Category")}${inp("strength","Strength")}${inp("form","Form")}${inp("qty","Quantity","number")}${inp("reorder","Reorder at","number")}${inp("price","Price (Br)","number")}${inp("expiry","Expiry date","date")}${inp("shelf","Shelf")}
  <label class="chk full"><input type="checkbox" name="rx" ${i.rx?"checked":""}> Prescription required</label>
- <div class="acts">${id?'<button type="button" class="btn danger" id="del">Delete</button>':""}<button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="sv">Save product</button></div>`;
+ <div class="acts">${id&&me&&me.role==="manager"?'<button type="button" class="btn danger" id="del">Delete</button>':""}<button type="button" class="btn ghost" id="cx">Cancel</button><button class="btn" id="sv">Save product</button></div>`;
  $("#dlg").showModal();
  $("#cx").onclick=()=>$("#dlg").close();
- if(id)$("#del").onclick=async()=>{if(!confirm("Delete "+i.name+"?"))return;try{await api(`/rest/v1/items?id=eq.${id}`,{method:"DELETE"});items=items.filter(x=>x.id!==id);$("#dlg").close();render();toast("Product deleted")}catch(x){toast(x.message)}};
+ if(id&&$("#del"))$("#del").onclick=async()=>{if(!confirm("Delete "+i.name+"?"))return;try{await api(`/rest/v1/items?id=eq.${id}`,{method:"DELETE"});items=items.filter(x=>x.id!==id);$("#dlg").close();render();toast("Product deleted")}catch(x){toast(x.message)}};
  f.onsubmit=async e=>{e.preventDefault();const d=new FormData(f),o={};
   ["name","generic","category","strength","form","shelf","expiry"].forEach(k=>o[k]=String(d.get(k)).trim());
   ["qty","reorder","price"].forEach(k=>o[k]=+d.get(k));o.rx=d.has("rx");o.updated_at=new Date().toISOString();

@@ -248,6 +248,11 @@ function edit(id){const i=id?items.find(x=>x.id===id):{name:"",generic:"",catego
 function exportCSV(){const h=["name","generic","category","strength","form","qty","reorder","price","expiry","rx","shelf"];
  const c=[h.join(",")].concat(items.map(i=>h.map(k=>'"'+String(i[k]).replace(/"/g,'""')+'"').join(",")));
  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(c.join("\n"));a.download="inventory.csv";a.click()}
+async function loadSettings(){try{const r=await fetch(SB+"/rest/v1/settings?select=*&id=eq.1",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}});if(!r.ok)return;const d=(await r.json())[0];if(!d)return;
+ ["name","area","phone","hours"].forEach(k=>{if(d[k]!=null&&String(d[k]).trim())PHARMACY[k]=String(d[k]).trim()});
+ $("#bn").textContent=PHARMACY.name;document.title=PHARMACY.name+" · Medicine catalogue";
+ if(document.querySelector(".where"))renderCat()}catch(e){}}
+loadSettings();
 refresh();
 </script>
 </body>
