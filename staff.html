@@ -137,22 +137,45 @@ async function tokenCall(grant,body){
  return {access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+d.expires_in,email:(d.user&&d.user.email)||(session&&session.email)||""}}
 const login=async(email,password)=>saveSess(await tokenCall("password",{email,password}));
 
-// Supabase invitation/recovery links normally return their session in the URL hash.
-// Capture it before the page's initial refresh, then ask the invited user to set a password.
+// Handle Supabase invitation/recovery callbacks in both implicit-token and PKCE formats.
 let authFlow=null;
-function captureAuthFlow(){
+function cleanAuthUrl(){history.replaceState(null,"",location.pathname);}
+function saveAuthSession(d,type){
+ if(!d||!d.access_token||!d.refresh_token)throw new Error("Supabase did not return a complete login session.");
+ const expiresIn=Number(d.expires_in)||3600;
+ saveSess({access_token:d.access_token,refresh_token:d.refresh_token,
+  expires_at:Number(d.expires_at)||Math.floor(Date.now()/1000)+expiresIn,
+  email:(d.user&&d.user.email)||""});
+ authFlow=type||"invite";
+}
+async function captureAuthFlow(){
  const hash=location.hash.startsWith("#")?location.hash.slice(1):"";
- if(!hash)return;
- const p=new URLSearchParams(hash);
- const error=p.get("error_description")||p.get("error");
- if(error){lerr=error.replace(/\+/g," ");history.replaceState(null,"",location.pathname+location.search);return;}
+ const p=new URLSearchParams(hash),query=new URLSearchParams(location.search);
+ const error=query.get("error_description")||query.get("error")||p.get("error_description")||p.get("error");
+ if(error){lerr=error.replace(/\+/g," ");saveSess(null);cleanAuthUrl();return;}
  const access=p.get("access_token"),refreshToken=p.get("refresh_token"),type=p.get("type");
  if(access&&refreshToken&&(type==="invite"||type==="recovery")){
-  const expiresIn=Number(p.get("expires_in"))||3600;
-  const expiresAt=Number(p.get("expires_at"))||Math.floor(Date.now()/1000)+expiresIn;
-  saveSess({access_token:access,refresh_token:refreshToken,expires_at:expiresAt,email:""});
-  authFlow=type;
-  history.replaceState(null,"",location.pathname+location.search);
+  saveAuthSession({access_token:access,refresh_token:refreshToken,
+   expires_in:p.get("expires_in"),expires_at:p.get("expires_at")},type);
+  cleanAuthUrl();return;
+ }
+ const code=query.get("code");
+ if(code){
+  const projectRef=new URL(SB).hostname.split(".")[0];
+  const verifierKey="sb-"+projectRef+"-auth-token-code-verifier";
+  let verifier=localStorage.getItem(verifierKey);
+  if(verifier){
+   try{const parsed=JSON.parse(verifier);if(parsed&&parsed.code_verifier)verifier=parsed.code_verifier;}catch(e){}
+   if(String(verifier).includes("/"))verifier=String(verifier).split("/")[0];
+  }
+  cleanAuthUrl();
+  if(!verifier){
+   lerr="This invitation returned a PKCE code, but this browser has no matching code verifier. The invitation redirect flow must be corrected before another invitation is sent.";
+   return;
+  }
+  const d=await tokenCall("pkce",{auth_code:code,code_verifier:verifier});
+  localStorage.removeItem(verifierKey);
+  saveAuthSession(d,"invite");
  }
 }
 async function setNewPassword(password){
@@ -187,7 +210,7 @@ function status(i){const d=daysLeft(i.expiry);
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2200)}
 
 let items=[],err=null,lerr="",view=MODE==="staff"?"staff":"cat",q="",cat="All",tab="stock",hist=[],logErr=null,plan={};
-captureAuthFlow();
+captureAuthFlow().then(()=>refresh()).catch(e=>{lerr=e.message||'Could not complete invitation verification.';saveSess(null);renderLogin()});
 $("#out").onclick=()=>{saveSess(null);items=[];lerr="";render();toast("Signed out")};
 
 let me=null;
@@ -373,7 +396,6 @@ function edit(id){const i=id?items.find(x=>x.id===id):{name:"",generic:"",catego
 function exportCSV(){const h=["name","generic","category","strength","form","qty","reorder","price","expiry","rx","shelf"];
  const c=[h.join(",")].concat(items.map(i=>h.map(k=>'"'+String(i[k]).replace(/"/g,'""')+'"').join(",")));
  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(c.join("\n"));a.download="inventory.csv";a.click()}
-refresh();
 </script>
 </body>
 </html>
