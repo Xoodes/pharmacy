@@ -116,7 +116,7 @@ async function tokenCall(grant,body){
  const d=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(d.error_description||d.msg||"Sign in failed");
  return {access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+d.expires_in,email:(d.user&&d.user.email)||(session&&session.email)||""}}
-const login=async(email,password)=>saveSess(await tokenCall("password",{email,password}));
+const login=async(email,password)=>{saveSess(await tokenCall("password",{email,password}));api("/rest/v1/rpc/mark_accepted",{method:"POST",body:{}}).catch(()=>{})};
 async function api(path,o={}){
  let token=KEY;
  if(o.auth!==false&&session){
@@ -131,6 +131,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money=n=>"Br "+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const big=n=>Math.round(n).toLocaleString("en-US");
+const safe=x=>typeof x==="string"&&/^[=+\-@]/.test(x)?"'"+x:String(x==null?"":x);
 const daysLeft=d=>Math.round((new Date(d)-now)/day);
 const hue=s=>{let h=0;for(const c of String(s||"x"))h=(h*31+c.charCodeAt(0))%360;return h};
 function status(i){const d=daysLeft(i.expiry);
@@ -155,6 +156,13 @@ const lowItems=()=>items.filter(i=>i.qty<=i.reorder&&daysLeft(i.expiry)>=0).sort
 const expItems=()=>items.filter(i=>daysLeft(i.expiry)<=90).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry));
 const attention=()=>[...new Set([...items.filter(i=>daysLeft(i.expiry)<0),...items.filter(i=>i.qty===0),...lowItems(),...expItems()])];
 
+let alog=[];
+const STAFF_URL=location.origin+location.pathname.replace(/[^/]*$/,"")+"staff.html";
+async function signOut(msg){await serverLogout();saveSess(null);ready=false;items=[];viewLogin(msg)}
+let idle=Date.now();["click","keydown","touchstart"].forEach(ev=>addEventListener(ev,()=>idle=Date.now(),{passive:true}));
+setInterval(()=>{if(session&&Date.now()-idle>30*60000)signOut("Signed out after 30 minutes of inactivity.")},30000);
+async function serverLogout(){try{if(session)await fetch(SB+"/auth/v1/logout",{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+session.access_token}})}catch(e){}}
+setInterval(async()=>{if(!ready||document.hidden||$("#dlg").open||!["dashboard","products","reorder","staff"].includes(route))return;const a=document.activeElement;if(a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName))return;try{items=await api("/rest/v1/items?select=*&order=name");if(route==="staff")await loadPeople();renderMain()}catch(e){}},60000);
 /* ---------- start-up and screens before sign-in ---------- */
 function routeFromHash(){const h=location.hash.slice(1);route=ROUTES.includes(h)?h:"dashboard"}
 async function loadMe(){try{const r=await api(`/rest/v1/profiles?select=role,active&user_id=eq.${uid()}`);return r[0]||{role:"none",active:false}}catch(e){if(e.status===404)return{setup:true};throw e}}
@@ -174,7 +182,7 @@ function viewLogin(m){$("#root").innerHTML=`<form class="login" id="lf"><div cla
  <div class="msg" role="alert">${esc(m||lerr)}</div><button class="btn">Sign in</button></form>`;
  $("#lf").onsubmit=async e=>{e.preventDefault();const d=new FormData(e.target);try{await login(d.get("email"),d.get("pw"));lerr="";start()}catch(x){lerr=x.message;viewLogin()}}}
 function viewMsg(t,m,retry,staffLink){$("#root").innerHTML=`<div class="login"><h1>${t}</h1><p>${m}</p>${retry?'<button class="btn" id="rt">Try again</button>':""}${staffLink?'<a class="btn" href="staff.html">Open staff page</a>':""}<button class="btn ghost" id="so2">Sign out</button></div>`;
- if(retry)$("#rt").onclick=start;$("#so2").onclick=()=>{saveSess(null);viewLogin()}}
+ if(retry)$("#rt").onclick=start;$("#so2").onclick=()=>signOut()}
 
 /* ---------- shell ---------- */
 function buildShell(){
@@ -190,7 +198,7 @@ function buildShell(){
  $("#menu").onclick=()=>document.body.classList.toggle("nav");$("#scrim").onclick=()=>document.body.classList.remove("nav");
  $("#chip").onclick=e=>{e.stopPropagation();$("#pop").hidden=!$("#pop").hidden};
  document.addEventListener("click",()=>{const p=$("#pop");if(p)p.hidden=true});
- $("#so").onclick=()=>{saveSess(null);ready=false;items=[];viewLogin()};
+ $("#so").onclick=()=>signOut();
  $("#bell").onclick=()=>{location.hash="reorder"};
  $("#gq").oninput=e=>{pf.q=e.target.value;pf.page=1;if(route==="products"||route==="history")renderMain();else location.hash="products"};
  $("#main").addEventListener("click",onClick);$("#main").addEventListener("change",onChange);$("#main").addEventListener("submit",onSubmit)}
@@ -200,7 +208,8 @@ function markNav(){document.querySelectorAll(".nv").forEach(a=>a.toggleAttribute
  const n=attention().length,b=$("#bn2");if(b){b.hidden=!n;b.textContent=n}}
 async function loadHist(force){if(histOk&&!force)return;histErr=null;
  try{hist=await api("/rest/v1/stock_log?select=*&order=changed_at.desc&limit=1000");histOk=true}catch(e){hist=[];histErr=(e.status===404||/stock_log/.test(e.message))?"setup":e.message}}
-async function loadPeople(){try{people=await api("/rest/v1/profiles?select=*&order=created_at")}catch(e){people=[];toast(e.message)}}
+async function loadPeople(){try{people=await api("/rest/v1/profiles?select=*&order=created_at")}catch(e){people=[];toast(e.message)}
+ try{alog=await api("/rest/v1/access_log?select=*&order=at.desc&limit=15")}catch(e){alog=[]}}
 async function loadFor(r){markNav();
  const need=["dashboard","history","reports"].includes(r)&&!histOk,needP=r==="staff";
  if(need||needP)$("#main").innerHTML='<div class="empty">Loading…</div>';
@@ -215,7 +224,7 @@ function outEvents(days){const cut=now-days*day;return hist.filter(h=>h.action==
 function movers(days){const m={};outEvents(days).forEach(h=>{m[h.item_name]=(m[h.item_name]||0)+(h.old_qty-h.new_qty)});return Object.entries(m).map(([name,out])=>({name,out})).sort((a,b)=>b.out-a.out)}
 function daily(days){const a=Array(days).fill(0);outEvents(days).forEach(h=>{const k=days-1-Math.floor((now-new Date(h.changed_at).getTime())/day);if(k>=0&&k<days)a[k]+=h.old_qty-h.new_qty});return a}
 const when=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
-function csv(name,rows){const t=rows.map(r=>r.map(x=>'"'+String(x==null?"":x).replace(/"/g,'""')+'"').join(",")).join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent("\uFEFF"+t);a.download=name+".csv";a.click()}
+function csv(name,rows){const t=rows.map(r=>r.map(x=>'"'+safe(x).replace(/"/g,'""')+'"').join(",")).join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent("\uFEFF"+t);a.download=name+".csv";a.click()}
 const H=["name","generic","category","strength","form","qty","reorder","price","expiry","rx","shelf"];
 const itemRows=l=>[H].concat(l.map(i=>H.map(k=>i[k])));
 function exportItems(){csv("inventory",itemRows(items));try{localStorage.setItem("mgr-backup",new Date().toISOString())}catch(e){}if(route==="dashboard")renderMain()}
@@ -271,7 +280,7 @@ function vProducts(){
  <div class="ft"><span>Showing ${list.length?from+1:0}–${Math.min(from+pf.size,list.length)} of ${list.length}</span><div class="pg">${pager(pf.page,pages)}</div>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mute)">Show<select class="fs" data-f="size" aria-label="Rows per page">${[10,25,50].map(n=>opt(String(n),n,String(pf.size))).join("")}</select></label></div>`}
 async function bump(id,d){const i=items.find(x=>x.id===id),old=i.qty,n=Math.max(0,old+d);if(n===old)return;i.qty=n;renderMain();
- try{await api(`/rest/v1/items?id=eq.${id}`,{method:"PATCH",body:{qty:n,updated_at:new Date().toISOString()}});histOk=false}catch(x){i.qty=old;renderMain();toast("Couldn’t save: "+x.message)}}
+ try{{const r=await api("/rest/v1/rpc/adjust_qty",{method:"POST",body:{p_id:id,p_delta:n-old}});if(typeof r==="number"&&r!==n){i.qty=r;renderMain()}}histOk=false}catch(x){i.qty=old;renderMain();toast("Couldn’t save: "+x.message)}}
 async function delOne(id){const i=items.find(x=>x.id===id);if(!confirm("Delete "+i.name+"? This cannot be undone."))return;
  try{await api(`/rest/v1/items?id=eq.${id}`,{method:"DELETE"});items=items.filter(x=>x.id!==id);pf.sel.delete(id);histOk=false;renderMain();toast("Product deleted")}catch(x){toast(x.message)}}
 async function delMany(){const ids=[...pf.sel];if(!ids.length||!confirm("Delete "+ids.length+" products? This cannot be undone."))return;
@@ -330,12 +339,20 @@ function reportCSV(k){const {cats,exp,fast}=reportData();
  if(k==="mov")csv("fast-movers-30-days",[["product","units out","in stock","days of stock left"]].concat(fast.map(m=>[m.name,m.out,m.qty,m.days])))}
 
 /* ---------- staff access ---------- */
-function vStaff(){const mine=uid();
- return `<div class="ph"><div><h1>Staff access</h1><p class="sub">Choose who can use the stock room, and who is a manager.</p></div></div>
- <div class="tablebox"><table style="min-width:640px"><thead><tr><th>Email</th><th>Role</th><th>Access</th><th>Added</th></tr></thead><tbody>${people.map(p=>{const you=p.user_id===mine;return `<tr><td><b>${esc(p.email)}</b>${you?" <span class=\"pill rx\">You</span>":""}</td>
+function vStaff(){const mine=uid(),dt=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+ return `<div class="ph"><div><h1>Staff access</h1><p class="sub">Invite people, choose who can use the stock room, and who is a manager.</p></div></div>
+ <form class="card" id="inv" style="max-width:700px;margin-bottom:16px"><h2>Invite a new person<small>They get an email to set their own password.</small></h2><div class="fgrid"><label class="full">Email<input name="email" type="email" required autocomplete="off"></label><label>Role<select name="role" class="fs"><option value="staff">Staff</option><option value="manager">Manager</option></select></label></div><p><button class="btn" id="ib">Send invitation</button></p></form>
+ <div class="tablebox"><table style="min-width:820px"><thead><tr><th>Email</th><th>Role</th><th>Access</th><th>Status</th><th>Added</th><th></th></tr></thead><tbody>${people.map(p=>{const you=p.user_id===mine,pend=!p.accepted_at;return `<tr><td><b>${esc(p.email)}</b>${you?' <span class="pill rx">You</span>':""}</td>
  <td><select class="fs" data-role="${p.user_id}" ${you?"disabled":""} aria-label="Role for ${esc(p.email)}"><option value="staff" ${p.role==="staff"?"selected":""}>Staff</option><option value="manager" ${p.role==="manager"?"selected":""}>Manager</option></select></td>
- <td><label class="chk" style="display:flex"><input type="checkbox" data-act="${p.user_id}" ${p.active?"checked":""} ${you?"disabled":""}> ${p.active?"Active":"Switched off"}</label></td><td>${new Date(p.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</td></tr>`}).join("")}</tbody></table>${people.length?"":'<div class="empty">No people found.</div>'}</div>
- <div class="card" style="margin-top:16px"><h2>Adding a new person</h2><p class="hint">Create their login in Supabase: Authentication, then Users, then Add user (tick Auto confirm). They appear here automatically as active staff. Staff can read, add and edit products and see the history. Only managers can delete products and change who has access. You cannot switch off or demote yourself, and the system always keeps at least one active manager.</p></div>`}
+ <td><label class="chk" style="display:flex"><input type="checkbox" data-act="${p.user_id}" ${p.active?"checked":""} ${you?"disabled":""}> ${p.active?"Active":"Switched off"}</label></td>
+ <td><span class="pill ${pend?"low":"ok"}">${pend?"Invite pending":"Joined"}</span></td><td>${dt(p.created_at)}</td>
+ <td class="act">${you?"":`${pend?`<button class="btn ghost sm" data-a="resend" data-id="${p.user_id}" data-email="${esc(p.email)}">Resend</button> `:""}<button class="btn danger sm" data-a="remove" data-id="${p.user_id}" data-email="${esc(p.email)}">Remove</button>`}</td></tr>`}).join("")}</tbody></table>${people.length?"":'<div class="empty">No people found.</div>'}</div>
+ <div class="card" style="margin-top:16px"><h2>Access changes<small>Latest 15, recorded automatically</small></h2>${alog.length?alog.map(l=>`<div class="al"><div><b>${esc(l.target_email)}</b><small>${esc(l.change)} · by ${esc(l.actor_email)}</small></div><small>${when(l.at)}</small></div>`).join(""):'<p class="hint">Nothing recorded yet.</p>'}</div>
+ <div class="card" style="margin-top:16px"><h2>What each role can do</h2><p class="hint">Staff can view, add and edit products, adjust quantities and see the history. Only managers can delete products and change who has access. You cannot switch off, demote or remove yourself, and the system keeps at least one active manager.</p></div>`}
+async function invite(e){e.preventDefault();const d=new FormData(e.target),b=$("#ib");b.disabled=true;b.textContent="Sending…";
+ try{await api("/functions/v1/invite-staff",{method:"POST",body:{action:"invite",email:String(d.get("email")).trim(),role:d.get("role"),redirect:STAFF_URL}});toast("Invitation sent");await loadPeople()}catch(x){toast(x.message)}renderMain()}
+async function userAct(a,id,email){if(a==="remove"&&!confirm("Remove "+email+" completely? They will lose all access."))return;
+ try{await api("/functions/v1/invite-staff",{method:"POST",body:{action:a,email,user_id:id,redirect:STAFF_URL}});toast(a==="resend"?"Invitation resent":"Person removed");await loadPeople()}catch(x){toast(x.message)}renderMain()}
 async function setPerson(id,patch){try{const r=await api(`/rest/v1/profiles?user_id=eq.${id}`,{method:"PATCH",body:patch,prefer:"return=representation"});if(r[0])people[people.findIndex(p=>p.user_id===id)]=r[0];toast("Saved")}catch(e){toast(e.message)}renderMain()}
 
 /* ---------- settings ---------- */
@@ -350,15 +367,16 @@ function onClick(e){const b=e.target.closest("[data-a]");if(!b)return;const a=b.
  if(a==="page"){pf.page=+b.dataset.n;return renderMain()}if(a==="clear"){pf.sel.clear();return renderMain()}
  if(a==="bdel")return delMany();if(a==="bexp")return csv("selected-stock",itemRows(items.filter(i=>pf.sel.has(i.id))));
  if(a==="csvall"||a==="bk")return exportItems();if(a==="rep")return reportCSV(b.dataset.n);
- if(a==="rl"){histOk=false;return loadFor(route)}if(["rcp","rwa","rcsv"].includes(a))return reorderAct(a)}
+ if(a==="rl"){histOk=false;return loadFor(route)}if(a==="resend"||a==="remove")return userAct(a,id,b.dataset.email);if(["rcp","rwa","rcsv"].includes(a))return reorderAct(a)}
 function onChange(e){const t=e.target;
  if(t.dataset.f){pf[t.dataset.f]=t.dataset.f==="size"?+t.value:t.value;pf.page=1;return renderMain()}
  if(t.dataset.all!==undefined){const rows=filt().slice((pf.page-1)*pf.size,pf.page*pf.size);rows.forEach(i=>t.checked?pf.sel.add(i.id):pf.sel.delete(i.id));return renderMain()}
  if(t.dataset.sel){t.checked?pf.sel.add(t.dataset.sel):pf.sel.delete(t.dataset.sel);return renderMain()}
  if(t.dataset.on)plan[t.dataset.on].on=t.checked;
  if(t.dataset.n){plan[t.dataset.n].n=Math.max(1,parseInt(t.value)||1);t.value=plan[t.dataset.n].n}
- if(t.dataset.role)setPerson(t.dataset.role,{role:t.value});if(t.dataset.act)setPerson(t.dataset.act,{active:t.checked})}
-async function onSubmit(e){if(e.target.id!=="sf")return;e.preventDefault();const d=new FormData(e.target),o={updated_at:new Date().toISOString()};["name","area","phone","hours"].forEach(k=>o[k]=String(d.get(k)).trim());
+ if(t.dataset.role){if(t.value==="manager"&&!confirm("Make this person a manager? Managers can delete products and control everyone's access."))return renderMain();setPerson(t.dataset.role,{role:t.value})}
+ if(t.dataset.act){if(!t.checked&&!confirm("Switch this person's access off?"))return renderMain();setPerson(t.dataset.act,{active:t.checked})}}
+async function onSubmit(e){if(e.target.id==="inv")return invite(e);if(e.target.id!=="sf")return;e.preventDefault();const d=new FormData(e.target),o={updated_at:new Date().toISOString()};["name","area","phone","hours"].forEach(k=>o[k]=String(d.get(k)).trim());
  const b=$("#ssv");b.disabled=true;b.textContent="Saving…";
  try{const r=await api("/rest/v1/settings?id=eq.1",{method:"PATCH",body:o,prefer:"return=representation"});cfg=r[0]||Object.assign(cfg,o);PHARMACY.name=cfg.name;toast("Details saved. The customer page now shows them.")}catch(x){toast("Couldn’t save: "+x.message)}
  renderMain()}

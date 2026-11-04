@@ -135,47 +135,25 @@ async function tokenCall(grant,body){
  const d=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(d.error_description||d.msg||"Sign in failed");
  return {access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+d.expires_in,email:(d.user&&d.user.email)||(session&&session.email)||""}}
-const login=async(email,password)=>saveSess(await tokenCall("password",{email,password}));
+const login=async(email,password)=>{saveSess(await tokenCall("password",{email,password}));api("/rest/v1/rpc/mark_accepted",{method:"POST",body:{}}).catch(()=>{})};
 
-// Handle Supabase invitation/recovery callbacks in both implicit-token and PKCE formats.
+// Supabase invitation/recovery links normally return their session in the URL hash.
+// Capture it before the page's initial refresh, then ask the invited user to set a password.
+const PKEY="shelf-needpw";const friendly=m=>/expired|invalid|used/i.test(m)?"This link was already used or has expired. Ask your manager to resend the invitation, or use Forgot password.":m.replace(/\+/g," ");
 let authFlow=null;
-function cleanAuthUrl(){history.replaceState(null,"",location.pathname);}
-function saveAuthSession(d,type){
- if(!d||!d.access_token||!d.refresh_token)throw new Error("Supabase did not return a complete login session.");
- const expiresIn=Number(d.expires_in)||3600;
- saveSess({access_token:d.access_token,refresh_token:d.refresh_token,
-  expires_at:Number(d.expires_at)||Math.floor(Date.now()/1000)+expiresIn,
-  email:(d.user&&d.user.email)||""});
- authFlow=type||"invite";
-}
-async function captureAuthFlow(){
+function captureAuthFlow(){
  const hash=location.hash.startsWith("#")?location.hash.slice(1):"";
- const p=new URLSearchParams(hash),query=new URLSearchParams(location.search);
- const error=query.get("error_description")||query.get("error")||p.get("error_description")||p.get("error");
- if(error){lerr=error.replace(/\+/g," ");saveSess(null);cleanAuthUrl();return;}
+ if(!hash)return;
+ const p=new URLSearchParams(hash);
+ const error=p.get("error_description")||p.get("error");
+ if(error){lerr=friendly(error);history.replaceState(null,"",location.pathname+location.search);return;}
  const access=p.get("access_token"),refreshToken=p.get("refresh_token"),type=p.get("type");
  if(access&&refreshToken&&(type==="invite"||type==="recovery")){
-  saveAuthSession({access_token:access,refresh_token:refreshToken,
-   expires_in:p.get("expires_in"),expires_at:p.get("expires_at")},type);
-  cleanAuthUrl();return;
- }
- const code=query.get("code");
- if(code){
-  const projectRef=new URL(SB).hostname.split(".")[0];
-  const verifierKey="sb-"+projectRef+"-auth-token-code-verifier";
-  let verifier=localStorage.getItem(verifierKey);
-  if(verifier){
-   try{const parsed=JSON.parse(verifier);if(parsed&&parsed.code_verifier)verifier=parsed.code_verifier;}catch(e){}
-   if(String(verifier).includes("/"))verifier=String(verifier).split("/")[0];
-  }
-  cleanAuthUrl();
-  if(!verifier){
-   lerr="This invitation returned a PKCE code, but this browser has no matching code verifier. The invitation redirect flow must be corrected before another invitation is sent.";
-   return;
-  }
-  const d=await tokenCall("pkce",{auth_code:code,code_verifier:verifier});
-  localStorage.removeItem(verifierKey);
-  saveAuthSession(d,"invite");
+  const expiresIn=Number(p.get("expires_in"))||3600;
+  const expiresAt=Number(p.get("expires_at"))||Math.floor(Date.now()/1000)+expiresIn;
+  saveSess({access_token:access,refresh_token:refreshToken,expires_at:expiresAt,email:""});
+  authFlow=type;try{localStorage.setItem(PKEY,type)}catch(e){}
+  history.replaceState(null,"",location.pathname+location.search);
  }
 }
 async function setNewPassword(password){
@@ -183,7 +161,9 @@ async function setNewPassword(password){
  const r=await fetch(SB+"/auth/v1/user",{method:"PUT",headers:{apikey:KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},body:JSON.stringify({password})});
  const d=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(d.msg||d.message||d.error_description||d.error||"Could not set password.");
- authFlow=null;
+ if(d.email&&session)saveSess({...session,email:d.email});
+ authFlow=null;try{localStorage.removeItem(PKEY)}catch(e){}
+ try{await api("/rest/v1/rpc/mark_accepted",{method:"POST",body:{}})}catch(e){}
 }
 async function api(path,o={}){
  let token=KEY;
@@ -200,6 +180,7 @@ $("#bn").textContent=PHARMACY.name+(MODE==="staff"?" · Staff":"");
 document.title=PHARMACY.name+(MODE==="staff"?" · Staff":" · Medicine catalogue");
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money=n=>"Br "+Number(n).toFixed(2);
+const safe=x=>typeof x==="string"&&/^[=+\-@]/.test(x)?"'"+x:String(x==null?"":x);
 const daysLeft=d=>Math.round((new Date(d)-now)/day);
 function status(i){const d=daysLeft(i.expiry);
  if(d<0)return{k:"bad",t:"Expired"};
@@ -210,8 +191,15 @@ function status(i){const d=daysLeft(i.expiry);
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2200)}
 
 let items=[],err=null,lerr="",view=MODE==="staff"?"staff":"cat",q="",cat="All",tab="stock",hist=[],logErr=null,plan={};
-captureAuthFlow().then(()=>refresh()).catch(e=>{lerr=e.message||'Could not complete invitation verification.';saveSess(null);renderLogin()});
-$("#out").onclick=()=>{saveSess(null);items=[];lerr="";render();toast("Signed out")};
+captureAuthFlow();
+if(!authFlow&&session){try{authFlow=localStorage.getItem(PKEY)}catch(e){}}
+async function signOut(msg){await serverLogout();saveSess(null);authFlow=null;try{localStorage.removeItem(PKEY)}catch(e){}items=[];lerr=msg||"";render();toast(msg||"Signed out")}
+$("#out").onclick=()=>signOut();
+let idle=Date.now();["click","keydown","touchstart"].forEach(ev=>addEventListener(ev,()=>idle=Date.now(),{passive:true}));
+setInterval(()=>{if(session&&Date.now()-idle>30*60000)signOut("Signed out after 30 minutes of inactivity.")},30000);
+async function serverLogout(){try{if(session)await fetch(SB+"/auth/v1/logout",{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+session.access_token}})}catch(e){}}
+setInterval(async()=>{if(!session||authFlow||view!=="staff"||document.hidden||$("#dlg").open)return;const a=document.activeElement;if(a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName))return;try{items=await api("/rest/v1/items?select=*&order=name");render()}catch(e){}},60000);
+
 
 let me=null;
 function uid(){try{const p=session.access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");return JSON.parse(atob(p)).sub}catch(e){return""}}
@@ -244,20 +232,22 @@ function renderLogin(){
  $("#app").innerHTML=`<h1>Staff sign in</h1><p class="sub">This page is for pharmacy staff only.</p>
  <form class="login" id="lf"><label>Email<input name="email" type="email" required autocomplete="username"></label>
  <label>Password<input name="pw" type="password" required autocomplete="current-password"></label>
- <div class="msg" role="alert">${esc(lerr)}</div><button class="btn">Sign in</button></form>`;
+ <div class="msg" role="alert">${esc(lerr)}</div><button class="btn">Sign in</button><button type="button" class="lnk" id="fp">Forgot password?</button></form>`;
+ $("#fp").onclick=async()=>{const em=$("#lf").email.value.trim();if(!em)return toast("Type your email first");try{await fetch(SB+"/auth/v1/recover?redirect_to="+encodeURIComponent(location.origin+location.pathname),{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify({email:em})})}catch(e){}toast("If that email has an account, a reset link is on its way.")};
  $("#lf").onsubmit=async e=>{e.preventDefault();const d=new FormData(e.target);
   try{await login(d.get("email"),d.get("pw"));lerr="";await refresh()}catch(x){lerr=x.message;renderLogin()}}}
 
 function renderPasswordSetup(){
  document.title=PHARMACY.name+" · Set staff password";
- $("#app").innerHTML=`<h1>Set your staff password</h1><p class="sub">Your invitation link has been verified. Create a password to finish setting up your staff account.</p>
+ $("#app").innerHTML=`<h1>${authFlow==="recovery"?"Reset your password":"Set your staff password"}</h1><p class="sub">${authFlow==="recovery"?"Choose a new password for your staff account.":"Your invitation link has been verified. Create a password to finish setting up your staff account."}</p>
  <form class="login" id="pf"><label>New password<input name="pw" type="password" minlength="8" required autocomplete="new-password"></label>
  <label>Confirm password<input name="confirm" type="password" minlength="8" required autocomplete="new-password"></label>
- <div class="msg" id="pm" role="alert"></div><button class="btn" id="ps">Save password</button></form>`;
+ <label class="chk"><input type="checkbox" id="sp"> Show passwords</label><div class="msg" id="pm" role="alert"></div><button class="btn" id="ps">Save password</button></form>`;
+ $("#sp").onchange=e=>document.querySelectorAll("#pf input[name=pw],#pf input[name=confirm]").forEach(x=>x.type=e.target.checked?"text":"password");
  $("#pf").onsubmit=async e=>{
   e.preventDefault();
   const d=new FormData(e.target),password=String(d.get("pw")||""),confirmation=String(d.get("confirm")||"");
-  if(password.length<8){$("#pm").textContent="Use at least 8 characters.";return;}
+  if(password.length<8||!/[A-Za-z]/.test(password)||!/\d/.test(password)){$("#pm").textContent="Use at least 8 characters with a letter and a number.";return;}
   if(password!==confirmation){$("#pm").textContent="The passwords do not match.";return;}
   const button=$("#ps");button.disabled=true;button.textContent="Saving…";$("#pm").textContent="";
   try{await setNewPassword(password);lerr="";await refresh();toast("Password saved. You can now use your staff account.");}
@@ -298,7 +288,7 @@ function renderStock(){
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{
   const i=items.find(x=>x.id===b.dataset.id),old=i.qty,n=Math.max(0,old+ +b.dataset.d);if(n===old)return;
   i.qty=n;render();
-  try{await api(`/rest/v1/items?id=eq.${i.id}`,{method:"PATCH",body:{qty:n,updated_at:new Date().toISOString()}})}
+  try{{const r=await api("/rest/v1/rpc/adjust_qty",{method:"POST",body:{p_id:i.id,p_delta:n-old}});if(typeof r==="number"&&r!==n){i.qty=r;render()}}}
   catch(x){i.qty=old;render();toast(x.status===401?"Please sign in again":"Couldn’t save: "+x.message);if(x.status===401)refresh()}});
  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>edit(b.dataset.edit))}
 
@@ -334,7 +324,7 @@ function renderReorder(){
  $("#pr").onclick=()=>window.print();
  $("#rc").onclick=()=>{if(!chosen().length)return toast("Tick at least one item");
   const rows=[["product","strength","form","in stock","amount to order"]].concat(chosen().map(i=>[i.name,i.strength,i.form,i.qty,plan[i.id].n]));
-  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\n"));a.download="reorder-list.csv";a.click()}}
+  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(rows.map(r=>r.map(x=>'"'+safe(x).replace(/"/g,'""')+'"').join(",")).join("\n"));a.download="reorder-list.csv";a.click()}}
 function orderText(rows){const d=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
  return PHARMACY.name+" - order list, "+d+"\n\n"+rows.map((i,k)=>`${k+1}. ${i.name} ${i.strength} (${i.form}) - ${plan[i.id].n}`).join("\n")+"\n\nThank you."}
 
@@ -394,8 +384,9 @@ function edit(id){const i=id?items.find(x=>x.id===id):{name:"",generic:"",catego
   }catch(x){sv.disabled=false;sv.textContent="Save product";toast("Couldn’t save: "+x.message)}}}
 
 function exportCSV(){const h=["name","generic","category","strength","form","qty","reorder","price","expiry","rx","shelf"];
- const c=[h.join(",")].concat(items.map(i=>h.map(k=>'"'+String(i[k]).replace(/"/g,'""')+'"').join(",")));
+ const c=[h.join(",")].concat(items.map(i=>h.map(k=>'"'+safe(i[k]).replace(/"/g,'""')+'"').join(",")));
  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(c.join("\n"));a.download="inventory.csv";a.click()}
+refresh();
 </script>
 </body>
 </html>
