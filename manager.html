@@ -350,9 +350,9 @@ function vStaff(){const mine=uid(),dt=t=>new Date(t).toLocaleDateString("en-GB",
  <div class="card" style="margin-top:16px"><h2>Access changes<small>Latest 15, recorded automatically</small></h2>${alog.length?alog.map(l=>`<div class="al"><div><b>${esc(l.target_email)}</b><small>${esc(l.change)} · by ${esc(l.actor_email)}</small></div><small>${when(l.at)}</small></div>`).join(""):'<p class="hint">Nothing recorded yet.</p>'}</div>
  <div class="card" style="margin-top:16px"><h2>What each role can do</h2><p class="hint">Staff can view, add and edit products, adjust quantities and see the history. Only managers can delete products and change who has access. You cannot switch off, demote or remove yourself, and the system keeps at least one active manager.</p></div>`}
 async function invite(e){e.preventDefault();const d=new FormData(e.target),b=$("#ib");b.disabled=true;b.textContent="Sending…";
- try{await api("/functions/v1/invite-staff",{method:"POST",body:{action:"invite",email:String(d.get("email")).trim(),role:d.get("role"),redirect:STAFF_URL}});toast("Invitation sent");await loadPeople()}catch(x){toast(x.message)}renderMain()}
+ try{await api("/functions/v1/bright-function",{method:"POST",body:{action:"invite",email:String(d.get("email")).trim(),role:d.get("role"),redirect:STAFF_URL}});toast("Invitation sent");await loadPeople()}catch(x){toast(x.message)}renderMain()}
 async function userAct(a,id,email){if(a==="remove"&&!confirm("Remove "+email+" completely? They will lose all access."))return;
- try{await api("/functions/v1/invite-staff",{method:"POST",body:{action:a,email,user_id:id,redirect:STAFF_URL}});toast(a==="resend"?"Invitation resent":"Person removed");await loadPeople()}catch(x){toast(x.message)}renderMain()}
+ try{await api("/functions/v1/bright-function",{method:"POST",body:{action:a,email,user_id:id,redirect:STAFF_URL}});toast(a==="resend"?"Invitation resent":"Person removed");await loadPeople()}catch(x){toast(x.message)}renderMain()}
 async function setPerson(id,patch){try{const r=await api(`/rest/v1/profiles?user_id=eq.${id}`,{method:"PATCH",body:patch,prefer:"return=representation"});if(r[0])people[people.findIndex(p=>p.user_id===id)]=r[0];toast("Saved")}catch(e){toast(e.message)}renderMain()}
 
 /* ---------- settings ---------- */
